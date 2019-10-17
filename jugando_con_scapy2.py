@@ -1,6 +1,11 @@
-import time
+import time, math
+from scipy.stats import t
 from scapy.all import sr
 from scapy.layers.inet import IP, UDP, TCP, ICMP
+
+def modified_thompson_tau(n):
+  t_alpha_sobre_2 = t.ppf(0.975, n-2)
+  return t_alpha_sobre_2 * (n - 1) / (math.sqrt(n) * math.sqrt(n - 2 + t_alpha_sobre_2 ** 2))
 
 def time_ms():
   return int(time.time_ns() / 1000000)
@@ -85,8 +90,8 @@ def imprimir_mediciones(ip_destino, lista_times):
         )
       ttl_nodo_ant, rtt_nodo_ant = [ttl_nodo, rtt_nodo]
 
-def promediar_tiempo_entre_nodos(ip_destino, n_mediciones, minima_cantidad_mediciones_para_promediar=10):
-  acum = {} # diccionario que va a tener a guardar (IP_1, IP_2) : (suma_tiempo_entre_ambos, cantidad_sumas)
+def promediar_tiempo_entre_nodos(ip_destino, n_mediciones, minima_cantidad_mediciones_para_promediar=2):
+  acum = {} # diccionario que va a tener a guardar (IP_1, IP_2) : (suma_tiempo_entre_ambos, cantidad_sumas, ttl_2)
   for medicion_tiempos in n_mediciones: # medicion_tiempos = lista de (TTL, RTT, IP destino)
     for i in range(1, len(medicion_tiempos)):
       # Me interesan solo los pares de nodos cuyas IP conocemos, o sea, los que respondieron y tienen TTL contiguo
@@ -98,34 +103,123 @@ def promediar_tiempo_entre_nodos(ip_destino, n_mediciones, minima_cantidad_medic
       if (ttl_anterior + 1 == ttl_actual):
         enlace = (ip_anterior, ip_actual) # la clave es la tupla de IPs
         if enlace in acum:
-          acum[enlace] = (acum[enlace][0] + diferencia_rtt, acum[enlace][1] + 1)
+          acum[enlace] = (acum[enlace][0] + diferencia_rtt, acum[enlace][1] + 1, ttl_actual)
         else:
-          acum[enlace] = (diferencia_rtt, 1)
+          acum[enlace] = (diferencia_rtt, 1, ttl_actual)
   # Ahora promedio pero sacando los tiempos que se midieron muy pocas veces, para no promediar entre pocos valores
   promedio = {}
   for k, v in acum.items():
     if v[1] >= minima_cantidad_mediciones_para_promediar:
-      promedio[k] = int(v[0] / v[1])
-  return promedio
+      media = int(v[0] / v[1])
+      promedio[k] = (media if not media < 0 else 0, v[2]) # Pongo cero si el tiempo es negativo
+  return promedio # dicc de (IP1,IP2): (promedio_tiempo_entre_nodos, TTL2)   Notar que TTL1 = TTL2 - 1
 
+def resultados_normalizados(res):
+  res_norm = {}
+  media = 0
+  n = len(res)
+  for tiempo_entre_nodos, ttl2 in res.values():
+    media += tiempo_entre_nodos
+  media = media / n
 
-univ_japonesa = "www.abu.ac.jp"
-ip_univ_japonesa = "183.90.238.55"
-cantidad_mediciones = 30
-li_times = trace_n_veces(ip_univ_japonesa, cantidad_mediciones=cantidad_mediciones)
-#imprimir_mediciones(ip_univ_japonesa, li_times)
-resultados = promediar_tiempo_entre_nodos(ip_univ_japonesa, li_times)
-print(resultados)
-# Promedio tiempo entre nodos para 30 mediciones:
-# {
-#   ('200.89.165.250', '185.70.203.32'): -10, 
-#   ('129.250.6.85', '129.250.4.13'): 42, 
-#   ('129.250.4.13', '129.250.6.30'): -13, 
-#   ('129.250.6.30', '129.250.3.61'): 93, 
-#   ('129.250.3.61', '129.250.7.31'): 0, 
-#   ('129.250.7.31', '129.250.3.210'): 2, 
-#   ('129.250.3.210', '61.200.91.186'): -7, 
-#   ('210.188.213.76', '183.90.238.55'): 6, 
-#   ('149.3.181.65', '129.250.2.12'): 132, 
-#   ('129.250.2.12', '129.250.6.85'): 4
-# }
+  desvio_estandar = 0
+  for tiempo_entre_nodos, ttl2 in res.values():
+    desvio_estandar += (tiempo_entre_nodos - media) ** 2
+  desvio_estandar = (desvio_estandar / n) ** 0.5
+
+  for k, v in res.items():
+    tiempo_entre_nodos, ttl2 = v
+    tiempo_normalizado = (tiempo_entre_nodos - media) / desvio_estandar
+    res_norm[k] = (tiempo_normalizado, ttl2)
+  return res_norm
+
+def encontrar_outliers(res):
+  copia_res = dict(res)
+  outliers = {}
+
+  puede_haber_outliers = True
+  while puede_haber_outliers:
+    media = 0
+    n = len(copia_res)
+    for tiempo_entre_nodos, ttl2 in copia_res.values():
+      media += tiempo_entre_nodos
+    media = media / n
+
+    desvio_estandar = 0
+    for tiempo_entre_nodos, ttl2 in copia_res.values():
+      desvio_estandar += (tiempo_entre_nodos - media) ** 2
+    desvio_estandar = (desvio_estandar / n) ** 0.5
+    
+    mayor_delta_i = -1
+    key_mayor_delta_i = None
+    
+    for k, v in  copia_res.items():
+      tiempo_entre_nodos, ttl2 = v
+      delta_i = abs(tiempo_entre_nodos - media)
+      if delta_i > mayor_delta_i:
+        mayor_delta_i = delta_i
+        key_mayor_delta_i = k
+    
+    if mayor_delta_i > 0 and mayor_delta_i > modified_thompson_tau(n) * desvio_estandar: # Es outlier
+      outliers[key_mayor_delta_i] = copia_res[key_mayor_delta_i]
+      copia_res.pop(key_mayor_delta_i) # Lo saco y calculo todo de nuevo sin ese elemento
+    else: # No es outlier, por lo tanto no hay mas
+      puede_haber_outliers = False
+  
+  return outliers
+
+ip_univ_japonesa = "183.90.238.55" # www.abu.ac.jp
+ip_univ_italiana = "193.205.80.112" # santannapisa.it
+cantidad_mediciones = 5
+
+li_tiempos = trace_n_veces(ip_univ_italiana, cantidad_mediciones=cantidad_mediciones)
+
+imprimir_mediciones(ip_univ_italiana, li_tiempos)
+
+resultados = promediar_tiempo_entre_nodos(ip_univ_japonesa, li_tiempos, cantidad_mediciones // 2)
+print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tTiempo entre nodos")
+for k, v in resultados.items():
+  ip1, ip2 = k
+  tiempo_entre_nodos, ttl2 = v
+  ttl1 = ttl2 - 1
+  print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos} ms")
+
+res_normalizados = resultados_normalizados(resultados)
+print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tValor Z")
+for k, v in res_normalizados.items():
+  ip1, ip2 = k
+  tiempo_entre_nodos, ttl2 = v
+  ttl1 = ttl2 - 1
+  print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos}")
+
+outliers = encontrar_outliers(resultados)
+# outliers = encontrar_outliers(outliers)
+print("OUTLIERS USANDO CIMBALA:")
+print("========================")
+print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tTiempo entre nodos")
+for k, v in outliers.items():
+  ip1, ip2 = k
+  tiempo_entre_nodos, ttl2 = v
+  ttl1 = ttl2 - 1
+  print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos} ms")
+
+outliers = encontrar_outliers(outliers)
+print("OUTLIERS USANDO CIMBALA DOS VECES:")
+print("==================================")
+print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tTiempo entre nodos")
+for k, v in outliers.items():
+  ip1, ip2 = k
+  tiempo_entre_nodos, ttl2 = v
+  ttl1 = ttl2 - 1
+  print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos} ms")
+
+# outliers = encontrar_outliers(res_normalizados)
+# # outliers = encontrar_outliers(outliers)
+# print("OUTLIERS PARA RESULTADOS NORMALIZADOS:")
+# print("======================================")
+# print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tValor Z")
+# for k, v in outliers.items():
+#   ip1, ip2 = k
+#   tiempo_entre_nodos, ttl2 = v
+#   ttl1 = ttl2 - 1
+#   print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos}")
