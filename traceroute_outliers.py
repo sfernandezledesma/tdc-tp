@@ -184,7 +184,7 @@ def encontrar_outliers(res):
 
 ip_univ_japonesa = "183.90.238.55" # www.abu.ac.jp
 ip_univ_italiana = "193.205.80.112" # santannapisa.it
-cantidad_mediciones = 5
+cantidad_mediciones = 60
 
 li_tiempos = trace_n_veces(ip_univ_italiana, cantidad_mediciones=cantidad_mediciones)
 
