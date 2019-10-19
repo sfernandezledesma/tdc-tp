@@ -106,13 +106,27 @@ def promediar_tiempo_entre_nodos(ip_destino, n_mediciones, minima_cantidad_medic
           acum[enlace] = (acum[enlace][0] + diferencia_rtt, acum[enlace][1] + 1, ttl_actual)
         else:
           acum[enlace] = (diferencia_rtt, 1, ttl_actual)
-  # Ahora promedio pero sacando los tiempos que se midieron muy pocas veces, para no promediar entre pocos valores
+  # Ahora promedio pero sacando los tiempos negativos y los que se midieron muy pocas veces
   promedio = {}
   for k, v in acum.items():
-    if v[1] >= minima_cantidad_mediciones_para_promediar:
-      media = int(v[0] / v[1])
-      promedio[k] = (media if not media < 0 else 0, v[2]) # Pongo cero si el tiempo es negativo
+    suma_tiempo_entre_ambos, cantidad_mediciones, ttl2 = v
+    media = int(suma_tiempo_entre_ambos / cantidad_mediciones)
+    if media >= 0 and cantidad_mediciones >= minima_cantidad_mediciones_para_promediar:
+      promedio[k] = (media, ttl2)
   return promedio # dicc de (IP1,IP2): (promedio_tiempo_entre_nodos, TTL2)   Notar que TTL1 = TTL2 - 1
+
+def reemplazar_rtt_de_cada_ip_por_el_minimo(n_mediciones):
+  minimo_rtt_para_ip = {} # diccionario que va a guardar IP:minimo_rtt
+  for medicion_tiempos in n_mediciones: # medicion_tiempos = lista de (TTL, RTT, IP destino)
+    for ttl, rtt, ip in medicion_tiempos:
+      if ip in minimo_rtt_para_ip:
+        minimo_rtt_para_ip[ip] = rtt if rtt < minimo_rtt_para_ip[ip] else minimo_rtt_para_ip[ip]
+      else:
+        minimo_rtt_para_ip[ip] = rtt
+  for medicion_tiempos in n_mediciones: # medicion_tiempos = lista de (TTL, RTT, IP destino)
+    for i in range(len(medicion_tiempos)): # v = (TTL, RTT, IP destino)
+      ttl, rtt, ip = medicion_tiempos[i]
+      medicion_tiempos[i] = (ttl, minimo_rtt_para_ip[ip], ip)
 
 def resultados_normalizados(res):
   res_norm = {}
@@ -174,7 +188,8 @@ cantidad_mediciones = 5
 
 li_tiempos = trace_n_veces(ip_univ_italiana, cantidad_mediciones=cantidad_mediciones)
 
-imprimir_mediciones(ip_univ_italiana, li_tiempos)
+# reemplazar_rtt_de_cada_ip_por_el_minimo(li_tiempos)
+# imprimir_mediciones(ip_univ_italiana, li_tiempos)
 
 resultados = promediar_tiempo_entre_nodos(ip_univ_japonesa, li_tiempos, cantidad_mediciones // 2)
 print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tTiempo entre nodos")
@@ -213,13 +228,13 @@ for k, v in outliers.items():
   ttl1 = ttl2 - 1
   print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos} ms")
 
-# outliers = encontrar_outliers(res_normalizados)
-# # outliers = encontrar_outliers(outliers)
-# print("OUTLIERS PARA RESULTADOS NORMALIZADOS:")
-# print("======================================")
-# print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tValor Z")
-# for k, v in outliers.items():
-#   ip1, ip2 = k
-#   tiempo_entre_nodos, ttl2 = v
-#   ttl1 = ttl2 - 1
-#   print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos}")
+outliers = encontrar_outliers(res_normalizados)
+# outliers = encontrar_outliers(outliers)
+print("OUTLIERS PARA RESULTADOS NORMALIZADOS:")
+print("======================================")
+print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tValor Z")
+for k, v in outliers.items():
+  ip1, ip2 = k
+  tiempo_entre_nodos, ttl2 = v
+  ttl1 = ttl2 - 1
+  print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos}")
