@@ -147,9 +147,13 @@ def resultados_normalizados(res):
     res_norm[k] = (tiempo_normalizado, ttl2)
   return res_norm
 
-def encontrar_outliers(res):
+def detectar_enlaces_intercontinentales(res):
   copia_res = dict(res)
   outliers = {}
+  media_total = 0
+  for tiempo_entre_nodos, ttl2 in res.values():
+    media_total += tiempo_entre_nodos
+  media_total = media_total / len(res)
 
   puede_haber_outliers = True
   while puede_haber_outliers:
@@ -170,11 +174,11 @@ def encontrar_outliers(res):
     for k, v in  copia_res.items():
       tiempo_entre_nodos, ttl2 = v
       delta_i = abs(tiempo_entre_nodos - media)
-      if delta_i > mayor_delta_i:
+      if delta_i > mayor_delta_i and tiempo_entre_nodos > media_total: # Pido que el candidato sea mayor a la media total
         mayor_delta_i = delta_i
         key_mayor_delta_i = k
     
-    if mayor_delta_i > 0 and mayor_delta_i > modified_thompson_tau(n) * desvio_estandar: # Es outlier
+    if key_mayor_delta_i and mayor_delta_i > modified_thompson_tau(n) * desvio_estandar: # Es outlier
       outliers[key_mayor_delta_i] = copia_res[key_mayor_delta_i]
       copia_res.pop(key_mayor_delta_i) # Lo saco y calculo todo de nuevo sin ese elemento
     else: # No es outlier, por lo tanto no hay mas
@@ -184,7 +188,7 @@ def encontrar_outliers(res):
 
 ip_univ_japonesa = "183.90.238.55" # www.abu.ac.jp
 ip_univ_italiana = "193.205.80.112" # santannapisa.it
-cantidad_mediciones = 60
+cantidad_mediciones = 15
 
 li_tiempos = trace_n_veces(ip_univ_italiana, cantidad_mediciones=cantidad_mediciones)
 
@@ -207,8 +211,7 @@ for k, v in res_normalizados.items():
   ttl1 = ttl2 - 1
   print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos}")
 
-outliers = encontrar_outliers(resultados)
-# outliers = encontrar_outliers(outliers)
+outliers = detectar_enlaces_intercontinentales(resultados)
 print("OUTLIERS USANDO CIMBALA:")
 print("========================")
 print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tTiempo entre nodos")
@@ -218,18 +221,7 @@ for k, v in outliers.items():
   ttl1 = ttl2 - 1
   print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos} ms")
 
-outliers = encontrar_outliers(outliers)
-print("OUTLIERS USANDO CIMBALA DOS VECES:")
-print("==================================")
-print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tTiempo entre nodos")
-for k, v in outliers.items():
-  ip1, ip2 = k
-  tiempo_entre_nodos, ttl2 = v
-  ttl1 = ttl2 - 1
-  print(f"{ttl1}\t{ttl2}\t{ip1}\t\t{ip2}\t\t{tiempo_entre_nodos} ms")
-
-outliers = encontrar_outliers(res_normalizados)
-# outliers = encontrar_outliers(outliers)
+outliers = detectar_enlaces_intercontinentales(res_normalizados)
 print("OUTLIERS PARA RESULTADOS NORMALIZADOS:")
 print("======================================")
 print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tValor Z")
