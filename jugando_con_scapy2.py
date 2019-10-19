@@ -170,11 +170,14 @@ def encontrar_outliers(res):
 
 ip_univ_japonesa = "183.90.238.55" # www.abu.ac.jp
 ip_univ_italiana = "193.205.80.112" # santannapisa.it
+ip_univ_sudafrica = "163.200.81.55" #www.unisa.ac.za
+
+ip_univ = ip_univ_sudafrica
 cantidad_mediciones = 5
 
-li_tiempos = trace_n_veces(ip_univ_italiana, cantidad_mediciones=cantidad_mediciones)
+li_tiempos = trace_n_veces(ip_univ, cantidad_mediciones=cantidad_mediciones)
 
-imprimir_mediciones(ip_univ_italiana, li_tiempos)
+imprimir_mediciones(ip_univ, li_tiempos)
 
 resultados = promediar_tiempo_entre_nodos(ip_univ_japonesa, li_tiempos, cantidad_mediciones // 2)
 print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tTiempo entre nodos")
