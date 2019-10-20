@@ -140,6 +140,7 @@ def resultados_normalizados(res):
   for tiempo_entre_nodos, ttl2 in res.values():
     desvio_estandar += (tiempo_entre_nodos - media) ** 2
   desvio_estandar = (desvio_estandar / n) ** 0.5
+  desvio_estandar = desvio_estandar if desvio_estandar != 0 else 1
 
   for k, v in res.items():
     tiempo_entre_nodos, ttl2 = v
@@ -198,7 +199,7 @@ li_tiempos = trace_n_veces(ip_univ, cantidad_mediciones=cantidad_mediciones)
 imprimir_mediciones(ip_univ, li_tiempos)
 
 # reemplazar_rtt_de_cada_ip_por_el_minimo(li_tiempos)
-# imprimir_mediciones(ip_univ_italiana, li_tiempos)
+imprimir_mediciones(ip_univ, li_tiempos)
 
 resultados = promediar_tiempo_entre_nodos(ip_univ, li_tiempos, cantidad_mediciones // 2)
 print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tTiempo entre nodos")
