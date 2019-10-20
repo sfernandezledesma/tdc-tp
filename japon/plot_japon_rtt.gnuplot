@@ -2,6 +2,8 @@ set title "Tiempos entre nodos para www.abu.ac.jp"
 set key below
 set multiplot
 
+set xrange [0:11]
+
 f(x) = a
 fit f(x) 'datos_japon_rtt.txt' via a
 

@@ -189,7 +189,7 @@ def detectar_enlaces_intercontinentales(res):
 
 ip_univ_japonesa = "183.90.238.55" # www.abu.ac.jp
 ip_univ_italiana = "193.205.80.112" # santannapisa.it
-ip_univ_sudafrica = "163.200.81.55" #www.unisa.ac.za
+ip_univ_sudafrica = "163.200.81.55" # www.unisa.ac.za
 
 ip_univ = ip_univ_sudafrica
 cantidad_mediciones = 15
