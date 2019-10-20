@@ -140,6 +140,7 @@ def resultados_normalizados(res):
   for tiempo_entre_nodos, ttl2 in res.values():
     desvio_estandar += (tiempo_entre_nodos - media) ** 2
   desvio_estandar = (desvio_estandar / n) ** 0.5
+  desvio_estandar = desvio_estandar if desvio_estandar != 0 else 1
 
   for k, v in res.items():
     tiempo_entre_nodos, ttl2 = v
@@ -188,14 +189,16 @@ def detectar_enlaces_intercontinentales(res):
 
 ip_univ_japonesa = "183.90.238.55" # www.abu.ac.jp
 ip_univ_italiana = "193.205.80.112" # santannapisa.it
-cantidad_mediciones = 15
+ip_univ_australiana = "43.245.43.59" # unimelb.edu.au
+ip = ip_univ_japonesa
+cantidad_mediciones = 10
 
-li_tiempos = trace_n_veces(ip_univ_italiana, cantidad_mediciones=cantidad_mediciones)
+li_tiempos = trace_n_veces(ip, cantidad_mediciones=cantidad_mediciones)
 
 # reemplazar_rtt_de_cada_ip_por_el_minimo(li_tiempos)
-# imprimir_mediciones(ip_univ_italiana, li_tiempos)
+imprimir_mediciones(ip, li_tiempos)
 
-resultados = promediar_tiempo_entre_nodos(ip_univ_japonesa, li_tiempos, cantidad_mediciones // 2)
+resultados = promediar_tiempo_entre_nodos(ip, li_tiempos, cantidad_mediciones // 2)
 print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tTiempo entre nodos")
 for k, v in resultados.items():
   ip1, ip2 = k
