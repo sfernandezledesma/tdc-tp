@@ -188,25 +188,19 @@ def detectar_enlaces_intercontinentales(res):
 
 ip_univ_japonesa = "183.90.238.55" # www.abu.ac.jp
 ip_univ_italiana = "193.205.80.112" # santannapisa.it
-<<<<<<< HEAD:jugando_con_scapy2.py
 ip_univ_sudafrica = "163.200.81.55" #www.unisa.ac.za
 
-ip_univ = ip_univ_sudafrica
-cantidad_mediciones = 5
-=======
+ip_univ = ip_univ_japonesa
 cantidad_mediciones = 15
->>>>>>> 8f77c673c4fc61e06da8d4b4f2f47deabe34b2ff:detectar_enlaces_intercontinentales.py
 
 li_tiempos = trace_n_veces(ip_univ, cantidad_mediciones=cantidad_mediciones)
 
-<<<<<<< HEAD:jugando_con_scapy2.py
 imprimir_mediciones(ip_univ, li_tiempos)
-=======
+
 # reemplazar_rtt_de_cada_ip_por_el_minimo(li_tiempos)
 # imprimir_mediciones(ip_univ_italiana, li_tiempos)
->>>>>>> 8f77c673c4fc61e06da8d4b4f2f47deabe34b2ff:detectar_enlaces_intercontinentales.py
 
-resultados = promediar_tiempo_entre_nodos(ip_univ_japonesa, li_tiempos, cantidad_mediciones // 2)
+resultados = promediar_tiempo_entre_nodos(ip_univ, li_tiempos, cantidad_mediciones // 2)
 print("TTL1\tTTL2\tIP1\t\t\tIP2\t\t\tTiempo entre nodos")
 for k, v in resultados.items():
   ip1, ip2 = k
